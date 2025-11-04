@@ -1,0 +1,59 @@
+name: Infra - Exoscale SKS
+
+on:
+  # Manual trigger (safe while you're experimenting)
+  workflow_dispatch:
+
+  # Optional: run when Terraform changes on main
+  # push:
+  #   branches: [ main ]
+  #   paths:
+  #     - '*.tf'
+  #     - '.github/workflows/terraform-sks.yml'
+
+jobs:
+  terraform-apply:
+    runs-on: ubuntu-latest
+
+    env:
+      # Terraform will read these for the Exoscale provider
+      EXOSCALE_API_KEY: ${{ secrets.EXOSCALE_API_KEY }}
+      EXOSCALE_API_SECRET: ${{ secrets.EXOSCALE_API_SECRET }}
+
+      # Change this if your main.tf is in a subfolder
+      TF_WORKING_DIR: .
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.0
+
+      # (Optional) Show Terraform version for debug
+      - name: Terraform version
+        run: terraform version
+
+      - name: Terraform init
+        run: terraform -chdir=$TF_WORKING_DIR init
+
+      - name: Terraform apply
+        run: terraform -chdir=$TF_WORKING_DIR apply -auto-approve
+
+      # Optional but useful: export kubeconfig as artifact if you have that output
+      - name: Export kubeconfig output
+        run: |
+          terraform -chdir=$TF_WORKING_DIR output -raw kubeconfig > kubeconfig
+          echo "Kubeconfig written to $(pwd)/kubeconfig"
+
+      - name: Upload kubeconfig artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kubeconfig
+          path: kubeconfig
+
+      # Optional: print the SKS API endpoint output
+      - name: Show SKS API endpoint
+        run: terraform -chdir=$TF_WORKING_DIR output sks_api_endpoint
