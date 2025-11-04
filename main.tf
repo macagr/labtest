@@ -31,13 +31,14 @@ resource "exoscale_sks_cluster" "opa" {
   service_level = "starter"
 }
 
-# Tiny nodepool (1x standard.micro) to keep costs low
 resource "exoscale_sks_nodepool" "default" {
   zone       = var.zone
   cluster_id = exoscale_sks_cluster.opa.id
 
-  name          = "default"
-  instance_type = "standard.micro"
+  name = "default"
+
+  # SKS does NOT support micro/tiny -> use small as the cheapest option
+  instance_type = "standard.small"
   size          = 1
 }
 
