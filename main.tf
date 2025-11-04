@@ -50,15 +50,6 @@ resource "exoscale_sks_kubeconfig" "admin" {
   groups = ["system:masters"]
 }
 
-resource "exoscale_sks_nodepool" "default" {
-  zone       = var.zone
-  cluster_id = exoscale_sks_cluster.opa.id
-
-  name          = "default"
-  instance_type = "standard.micro"
-  size          = 1
-}
-
 
 output "sks_api_endpoint" {
   description = "Public Kubernetes API endpoint"
