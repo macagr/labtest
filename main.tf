@@ -117,15 +117,3 @@ output "kubeconfig" {
   value       = exoscale_sks_kubeconfig.admin.kubeconfig
   sensitive   = true
 }
-
-
-output "sks_api_endpoint" {
-  description = "Public Kubernetes API endpoint"
-  value       = exoscale_sks_cluster.opa.endpoint
-}
-
-output "kubeconfig" {
-  description = "Admin kubeconfig (sensitive)"
-  value       = exoscale_sks_kubeconfig.admin.kubeconfig
-  sensitive   = true
-}
