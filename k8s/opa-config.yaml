@@ -18,7 +18,7 @@ data:
       sample:
         service: jfrog
         # Repo + path inside Artifactory
-        resource: opa-policies-local/sample/opa-sample-bundle-latest.tar.gz
+        resource: opa-generic-local/sample/opa-sample-bundle-latest.tar.gz
         polling:
           min_delay_seconds: 60
           max_delay_seconds: 300
