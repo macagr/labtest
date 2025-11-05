@@ -1,11 +1,11 @@
 name: Deploy OPA to SKS
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:          # manual trigger
   push:
     branches: [ main ]
     paths:
-      - 'infra/k8s/**'
+      - 'k8s/**'
       - '.github/workflows/deploy-opa.yml'
 
 jobs:
@@ -13,8 +13,9 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      # JFROG_TOKEN is your JFrog access token (Bearer)
       JFROG_TOKEN: ${{ secrets.JFROG_TOKEN }}
+      # Optional if you want to parametrize it instead of hardcoding in ConfigMap
+      # JFROG_URL:   ${{ secrets.JFROG_URL }}
 
     steps:
       - name: Checkout repo
@@ -32,63 +33,29 @@ jobs:
         with:
           version: 'v1.30.0'
 
-      - name: Define kubectl retry helper
+      # Install ingress-nginx (idempotent)
+      - name: Install / update ingress-nginx controller
         run: |
-          cat << 'EOF' > kubectl_retry.sh
-          #!/usr/bin/env bash
-          set -euo pipefail
-          cmd="$@"
-          for i in {1..5}; do
-            echo "Attempt $i: kubectl $cmd"
-            if kubectl $cmd; then
-              echo "kubectl $cmd succeeded"
-              exit 0
-            fi
-            echo "kubectl $cmd failed, retrying in 10s..."
-            sleep 10
-          done
-          echo "kubectl $cmd failed after 5 attempts"
-          exit 1
-          EOF
-          chmod +x kubectl_retry.sh
-
-      - name: Check cluster connectivity
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/exoscale/deploy.yaml
+          kubectl -n ingress-nginx rollout status daemonset/ingress-nginx-controller --timeout=300s 
+          
+      # Namespace + JFrog secret
+      - name: Ensure opa namespace and jfrog secret exist
         run: |
-          ./kubectl_retry.sh cluster-info --request-timeout=60s
-          ./kubectl_retry.sh get nodes --request-timeout=60s
+          kubectl create namespace opa --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n opa create secret generic jfrog-credentials \
+            --from-literal=JFROG_TOKEN="$JFROG_TOKEN" \
+            --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Install / Update / Verify ingress-nginx controller
-        run: |
-          ./kubectl_retry.sh -n ingress-nginx rollout status daemonset/ingress-nginx-controller --timeout=300s || \
-          ./kubectl_retry.sh -n ingress-nginx rollout status deployment/ingress-nginx-controller --timeout=300s
-
-      - name: Apply OPA namespace
-        run: |
-          ./kubectl_retry.sh apply --validate=false --request-timeout=60s -f k8s/namespace-opa.yaml
-
-      - name: Create / update JFrog secret
-        run: |
-          # Render secret manifest to a file, then apply with retries
-          cat <<EOF > jfrog-secret.yaml
-          apiVersion: v1
-          kind: Secret
-          metadata:
-            name: jfrog-credentials
-            namespace: opa
-          type: Opaque
-          stringData:
-            JFROG_TOKEN: "${JFROG_TOKEN}"
-          EOF
-
-          ./kubectl_retry.sh apply --validate=false --request-timeout=60s -f jfrog-secret.yaml
-
+      # Apply OPA manifests
       - name: Apply OPA K8s manifests
         run: |
-          ./kubectl_retry.sh apply --validate=false --request-timeout=60s -f infra/k8s/opa-config.yaml
-          ./kubectl_retry.sh apply --validate=false --request-timeout=60s -f infra/k8s/opa-deployment.yaml
-          ./kubectl_retry.sh apply --validate=false --request-timeout=60s -f infra/k8s/opa-ingress.yaml
+          kubectl apply -f infra/k8s/namespace-opa.yaml
+          kubectl apply -f infra/k8s/opa-config.yaml
+          kubectl apply -f infra/k8s/opa-deployment.yaml
+          kubectl apply -f infra/k8s/opa-ingress.yaml
 
       - name: Show status
         run: |
-          ./kubectl_retry.sh -n opa get pods,svc,ingress --request-timeout=60s
-          ./kubectl_retry.sh -n ingress-nginx get svc --request-timeout=60s
+          kubectl -n opa get pods,svc,ingress
+          kubectl -n ingress-nginx get svc
