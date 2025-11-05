@@ -27,6 +27,7 @@ jobs:
         run: |
           echo "$KUBECONFIG_B64" | base64 -d > kubeconfig
           echo "KUBECONFIG=$PWD/kubeconfig" >> $GITHUB_ENV
+          kubectl get pods -A
 
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
