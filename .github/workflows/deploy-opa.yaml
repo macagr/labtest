@@ -57,10 +57,10 @@ jobs:
           ./kubectl_retry.sh cluster-info --request-timeout=60s
           ./kubectl_retry.sh get nodes --request-timeout=60s
 
-      - name: Install / update ingress-nginx controller
+      - name: Install / Update / Verify ingress-nginx controller
         run: |
-          ./kubectl_retry.sh apply --validate=false --request-timeout=60s \
-            -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/exoscale/deploy.yaml
+#          ./kubectl_retry.sh apply --validate=false --request-timeout=60s \
+#            -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/exoscale/deploy.yaml
           ./kubectl_retry.sh -n ingress-nginx rollout status daemonset/ingress-nginx-controller --timeout=300s || \
           ./kubectl_retry.sh -n ingress-nginx rollout status deployment/ingress-nginx-controller --timeout=300s
 
