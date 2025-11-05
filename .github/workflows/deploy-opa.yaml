@@ -45,7 +45,12 @@ jobs:
           kubectl -n opa create secret generic jfrog-credentials \
             --from-literal=JFROG_TOKEN="$JFROG_TOKEN" \
             --dry-run=client -o yaml | kubectl apply -f -
-
+ 
+      - name: Check cluster connectivity
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+          
       # Apply OPA manifests
       - name: Apply OPA K8s manifests
         run: |
