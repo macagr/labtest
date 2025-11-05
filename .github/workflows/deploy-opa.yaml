@@ -37,9 +37,7 @@ jobs:
       - name: Install / update ingress-nginx controller
         run: |
           kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/exoscale/deploy.yaml
-          kubectl -n ingress-nginx rollout status daemonset/ingress-nginx-controller --timeout=300s || \
-          kubectl -n ingress-nginx rollout status deployment/ingress-nginx-controller --timeout=300s
-
+          kubectl -n ingress-nginx rollout status daemonset/ingress-nginx-controller --timeout=300s
       # Namespace + JFrog secret
       - name: Ensure opa namespace and jfrog secret exist
         run: |
