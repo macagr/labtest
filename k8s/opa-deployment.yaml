@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opa-server
+  namespace: opa
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: opa-server
+  template:
+    metadata:
+      labels:
+        app: opa-server
+    spec:
+      containers:
+        - name: opa
+          image: openpolicyagent/opa:latest-rootless
+          args:
+            - "run"
+            - "--server"
+            - "--config-file=/config/config.yaml"
+          env:
+            # This is what OPA’s config.yaml will read as ${JFROG_TOKEN}
+            - name: JFROG_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: jfrog-credentials
+                  key: JFROG_TOKEN
+          ports:
+            - name: http
+              containerPort: 8181
+          volumeMounts:
+            - name: opa-config
+              mountPath: /config
+              readOnly: true
+      volumes:
+        - name: opa-config
+          configMap:
+            name: opa-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opa-server
+  namespace: opa
+spec:
+  type: ClusterIP
+  selector:
+    app: opa-server
+  ports:
+    - name: http
+      port: 8181
+      targetPort: 8181

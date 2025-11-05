@@ -1,0 +1,62 @@
+name: Deploy OPA to SKS
+
+on:
+  workflow_dispatch:          # manual trigger
+  push:
+    branches: [ main ]
+    paths:
+      - 'k8s/**'
+      - '.github/workflows/deploy-opa.yml'
+
+jobs:
+  deploy-opa:
+    runs-on: ubuntu-latest
+
+    env:
+      JFROG_TOKEN: ${{ secrets.JFROG_TOKEN }}
+      # Optional if you want to parametrize it instead of hardcoding in ConfigMap
+      # JFROG_URL:   ${{ secrets.JFROG_URL }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Recreate kubeconfig from secret
+        env:
+          KUBECONFIG_B64: ${{ secrets.EXOSCALE_KUBECONFIG_B64 }}
+        run: |
+          echo "$KUBECONFIG_B64" | base64 -d > kubeconfig
+          echo "KUBECONFIG=$PWD/kubeconfig" >> $GITHUB_ENV
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.30.0'
+
+      # Install ingress-nginx (idempotent)
+      - name: Install / update ingress-nginx controller
+        run: |
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/exoscale/deploy.yaml
+          kubectl -n ingress-nginx rollout status daemonset/ingress-nginx-controller --timeout=300s || \
+          kubectl -n ingress-nginx rollout status deployment/ingress-nginx-controller --timeout=300s
+
+      # Namespace + JFrog secret
+      - name: Ensure opa namespace and jfrog secret exist
+        run: |
+          kubectl create namespace opa --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n opa create secret generic jfrog-credentials \
+            --from-literal=JFROG_TOKEN="$JFROG_TOKEN" \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      # Apply OPA manifests
+      - name: Apply OPA K8s manifests
+        run: |
+          kubectl apply -f infra/k8s/namespace-opa.yaml
+          kubectl apply -f infra/k8s/opa-config.yaml
+          kubectl apply -f infra/k8s/opa-deployment.yaml
+          kubectl apply -f infra/k8s/opa-ingress.yaml
+
+      - name: Show status
+        run: |
+          kubectl -n opa get pods,svc,ingress
+          kubectl -n ingress-nginx get svc
