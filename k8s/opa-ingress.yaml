@@ -4,7 +4,7 @@ metadata:
   name: opa-ingress
   namespace: opa
 spec:
-  ingressClassName: nginx 
+  ingressClassName: nginx
   rules:
     - http:
         paths:

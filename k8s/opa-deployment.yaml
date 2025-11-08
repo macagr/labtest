@@ -15,10 +15,11 @@ spec:
     spec:
       containers:
         - name: opa
-          image: openpolicyagent/opa:latest-rootless
+          image: openpolicyagent/opa:latest
           args:
             - "run"
             - "--server"
+            - "--addr=0.0.0.0:8181"
             - "--config-file=/config/config.yaml"
           env:
             # This is what OPA’s config.yaml will read as ${JFROG_TOKEN}
